@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Management System</title>
+    <link rel="stylesheet" href="static/styles.css">
+</head>
+<body>
+    <!-- Login Page -->
+    <div class="login-container" id="login-page">
+        <div class="login-form">
+            <h2>Login</h2>
+            <input type="text" id="user-id" placeholder="User ID">
+            <input type="password" id="password" placeholder="Password">
+            <button onclick="login()">Login</button>
+        </div>
+    </div>
+
+    <!-- Dashboard Page -->
+    <div class="dashboard-container" style="display: none;" id="dashboard-page">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <a onclick="showSection('product-insertion')">Product Insertion</a>
+            <a onclick="showSection('alerts')">Alerts</a>
+            <a onclick="showSection('product-analysis')">Product Analysis</a>
+        </div>
+
+        <!-- Main Content Sections -->
+        <!-- Product Insertion Section -->
+        <div id="product-insertion" class="main-content active">
+            <h2>Product Insertion</h2>
+            <div class="form-container">
+                <input type="text" id="product-id" placeholder="Product ID" readonly>
+                <select id="brand-name" onchange="generateProductId()">
+                    <option value="mu">Muscleblaze</option>
+                    <option value="we">Wellcore</option>
+                </select>
+                <select id="product-name" onchange="generateProductId()">
+                    <!-- Product options... -->
+                    <option value="1">Creatine</option>
+                    <option value="2">Whey Protein</option>
+                    <option value="3">BCAA</option>
+                    <option value="4">Glutamine</option>
+                    <option value="5">Casein Protein</option>
+                    <option value="6">Pre-Workout</option>
+                    <option value="7">Fat Burner</option>
+                    <option value="8">Whey Isolate</option>
+                    <option value="9">Collagen Peptides</option>
+                    <option value="10">Multivitamins</option>
+                    <option value="11">ZMA</option>
+                    <option value="12">L-Carnitine</option>
+                    <option value="13">Protein Bar</option>
+                    <option value="14">Omega-3</option>
+                    <option value="15">Testosterone Booster</option>
+                    <option value="16">Mass Gainer</option>
+                    <option value="17">Electrolytes</option>
+                    <option value="18">Vitamin D</option>
+                    <option value="19">Caffeine</option>
+                    <option value="20">Recovery Protein</option>
+                </select>
+                <input type="number" id="quantity" placeholder="Quantity" min="1">
+                <input type="number" id="actual-price" placeholder="Actual Price" min="0">
+                <input type="number" id="selling-price" placeholder="Selling Price" min="0">
+                <input type="date" id="expiration-date">
+                <button onclick="insertProduct()">Insert Product</button>
+                <button onclick="deleteProduct()">Delete Product</button>
+            </div>
+        </div>
+
+        <!-- Alerts Section -->
+        <div id="alerts" class="main-content">
+            <h2>Alerts</h2>
+            <div id="alert-container"></div>
+            <button onclick="fetchAlerts()">Refresh Alerts</button>
+        </div>
+
+        <!-- Product Analysis Section -->
+        <div id="product-analysis" class="main-content">
+            <h2>Product Analysis</h2>
+            <input type="text" id="analysis-product-id" placeholder="Enter Product ID to search">
+            <button onclick="fetchProductDetails()">Search</button>
+            <div id="product-details-container"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        function showSection(sectionId) {
+            const sections = document.querySelectorAll('.main-content');
+            sections.forEach(section => section.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+        }
+
+        function generateProductId() {
+            const brand = document.getElementById("brand-name").value;
+            const product = document.getElementById("product-name").value;
+            document.getElementById("product-id").value = brand + product;
+        }
+
+        function login() {
+            const userId = document.getElementById('user-id').value;
+            const password = document.getElementById('password').value;
+            if (userId === "admin" && password === "admin") {
+                document.getElementById('login-page').style.display = 'none';
+                document.getElementById('dashboard-page').style.display = 'flex';
+                showSection('product-insertion');
+            } else {
+                alert("Invalid login credentials");
+            }
+        }
+
+        function insertProduct() {
+            const product = {
+                productId: document.getElementById("product-id").value,
+                brandName: document.getElementById("brand-name").value,
+                productName: document.getElementById("product-name").options[document.getElementById("product-name").selectedIndex].text,
+                quantity: document.getElementById("quantity").value,
+                actualPrice: document.getElementById("actual-price").value,
+                sellingPrice: document.getElementById("selling-price").value,
+                expirationDate: document.getElementById("expiration-date").value
+            };
+            fetch('/api/insert_product', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(product)
+            })
+            .then(response => response.json())
+            .then(data => alert(data.message))
+            .catch(error => console.error('Error:', error));
+        }
+
+        function deleteProduct() {
+            const productId = document.getElementById("product-id").value;
+            const quantity = document.getElementById("quantity").value;
+            fetch('/api/delete_product', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ productId, quantity })
+            })
+            .then(response => response.json())
+            .then(data => alert(data.message))
+            .catch(error => console.error('Error:', error));
+        }
+
+        function fetchAlerts() {
+            fetch('/api/alerts')
+                .then(response => response.json())
+                .then(data => {
+                    const alertContainer = document.getElementById("alert-container");
+                    alertContainer.innerHTML = data.alerts.map(alert => `<p>${alert}</p>`).join("");
+                });
+        }
+
+        function fetchProductDetails() {
+            const productId = document.getElementById("analysis-product-id").value;
+            fetch(`/api/fetch_product_details?productId=${productId}`)
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.getElementById("product-details-container");
+                    container.innerHTML = generateProductTable(data);
+                });
+        }
+
+        function generateProductTable(products) {
+             // Check if products is empty or undefined
+             if (!products || products.length === 0) {
+                return "<p>No products found.</p>";
+            }
+
+             // Start building the table with headers
+            let table = `<table border="1" cellpadding="5" cellspacing="0">
+             <thead>
+            <tr>
+                <th>Product ID</th>
+                <th>Brand Name</th>
+                <th>Product Name</th>
+                <th>Quantity</th>
+                <th>Actual Price</th>
+                <th>Selling Price</th>
+                <th>Expiration Date</th>
+            </tr>
+        </thead>
+        <tbody>`; // Added tbody for better structure
+
+        // Loop through each product to create rows
+        products.forEach(product => {
+         // Ensure expiration date is properly formatted
+             const expirationDate = new Date(product.expirationDate).toLocaleDateString();
+        
+             table += `<tr>
+                <td>${product.productId}</td>
+                <td>${product.brandName}</td>
+                <td>${product.productName}</td>
+                <td>${product.quantity}</td>
+                <td>${product.actualPrice}</td>
+                <td>${product.sellingPrice}</td>
+                <td>${expirationDate}</td>
+            </tr>`;
+         });
+
+    // Close the table tags
+        table += `</tbody></table>`;
+
+        return table;
+    }
+
+    </script>
+</body>
+</html>
